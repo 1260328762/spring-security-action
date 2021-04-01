@@ -62,6 +62,42 @@
 
 
 
+### 三，技术概览
+
+#### 3.1 核心组件
+
+##### 3.1.1 SecurityContextHolder, SecurityContext and Authentication Objects
+
+**三种用户上下文存储策略**
+
+```java
+public static final String MODE_THREADLOCAL = "MODE_THREADLOCAL";
+public static final String MODE_INHERITABLETHREADLOCAL = "MODE_INHERITABLETHREADLOCAL";
+public static final String MODE_GLOBAL = "MODE_GLOBAL";
+```
+
+**获取当前用户信息**
+
+```java
+Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+if (principal instanceof UserDetails) {
+String username = ((UserDetails)principal).getUsername();
+} else {
+String username = principal.toString();
+}
+```
+
+**加载用户信息 实现The UserDetailsService**
+
+```java
+UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
+```
+
+
+
+
+
 
 
 
