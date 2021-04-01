@@ -94,7 +94,14 @@ String username = principal.toString();
 UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
 ```
 
+**总结**
 
+- `SecurityContextHolder`, to provide access to the `SecurityContext`.
+- `SecurityContext`, to hold the `Authentication` and possibly request-specific security information.
+- `Authentication`, to represent the principal in a Spring Security-specific manner.
+- `GrantedAuthority`, to reflect the application-wide permissions granted to a principal.
+- `UserDetails`, to provide the necessary information to build an Authentication object from your application’s DAOs or other source of security data.
+- `UserDetailsService`, to create a `UserDetails` when passed in a `String`-based username (or certificate ID or the like).
 
 
 
