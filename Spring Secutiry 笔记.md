@@ -137,6 +137,8 @@ SecurityContextHolder 包含 SecurityContext
 
 
 
+## 四，Servlet 安全
+
 
 
 ### 客户端请求流程图
@@ -296,6 +298,128 @@ public void doFilter(ServletRequest request, ServletResponse response,
 
 
 ### SecurityFilters
+
+**Filter顺序及作用**
+
+- **ChannelProcessingFilter**：一般用来做https和http切换使用
+
+- **WebAsyncManagerIntegrationFilter**：用于集成SecurityContext到Spring异步执行机制中的WebAsyncManager。用来处理异步请求的安全上下文
+
+- **SecurityContextPersistenceFilter：** 在请求来临时把Authentication读取到SecurityContextHolder中，在请求结束时清除SecurityContextHolder，并把最新的Authentication存储起来以供下次使用
+
+- **HeaderWriteFilter:** 给响应添加一些Header，比如 `X-Frame-Options`, `X-XSS-Protection` ，`X-Content-Type-Options`等
+
+- **CorsFilter：** 跨域相关
+
+- **CsrfFilter：** 防御csrf攻击
+
+- **LogoutFilter：** 登出过滤器
+
+- **OAuth2AuthorizationRequestRedirectFilter：** Oauth请求重定向相关逻辑，需要引入spring-scurity-oauth2相关模块
+
+- **Saml2WebSsoAuthenticationRequestFilter：** 基于 `SMAL` 的 `SSO` 单点登录请求认证过滤器。
+
+- **X509AuthenticationFilter：** X509相关配置
+
+- **AbstractPreAuthenticatedProcessingFilter：** 主要作用是从传入请求中提取主体上的必要信息，而不是对它们进行身份验证。
+
+- **CasAuthenticationFilter：** Cas登录相关
+
+- **OAuth2LoginAuthenticationFilter：** Oauth2登陆相关
+
+- **Saml2WebSsoAuthenticationFilter：** 基于 `SMAL` 的 `SSO` 单点登录认证过滤器
+
+- **UsernamePasswordAuthenticationFilter：** 基于用户名密码登录的校验处理逻辑
+
+- **OpenIDAuthenticationFilter：** 基于OpenID认证过滤
+
+- **DefaultLoginPageGeneratingFilter：** 生成登陆页面，登陆成功和登录错误页面
+
+- **DefaultLogoutPageGeneratingFilter：** 生成登出页面
+
+- **ConcurrentSessionFilter：** 做session并发控制，比如控制一个账号只能有一个在线
+
+- **DigestAuthenticationFilter：** `DigestAuthenticationFilter` 能够处理 `HTTP` 头中显示的摘要式身份验证凭据。你可以通过 `HttpSecurity#addFilter()` 来启用和配置相关功能。
+
+- **BasicAuthenticationFilter :** `asicAuthenticationFilter` 负责处理 `HTTP` 头中显示的基本身份验证凭据。这个 **Spring Security** 的 **Spring Boot** 自动配置默认是启用的 。
+
+  `BasicAuthenticationFilter` 通过 `HttpSecurity#httpBasic()` 及相关方法引入其配置对象 `HttpBasicConfigurer` 来进行配置。
+
+- **RequestCacheAwareFilter：** 用于用户认证成功后，重新恢复因为登录被打断的请求。当匿名访问一个需要授权的资源时。会跳转到认证处理逻辑，此时请求被缓存。在认证逻辑处理完毕后，从缓存中获取最开始的资源请求进行再次请求。
+
+- **SecurityContextHolderAwareRequestFilter：** 对原有的HttpServletRequest进行包装，增强。包装后的request对象对Servlet中的安全方法进行了实现
+
+  `HttpServletRequest.authenticate(HttpServletResponse) `
+
+  `HttpServletRequest.login(String, String) `
+
+  `HttpServletRequest.logout()`
+
+  `AsyncContext.start(Runnable) `
+  
+- **JaasApiIntegrationFilter：** 对Java认证和授权提供支持
+
+- **RememberMeAuthenticationFilter：** 对rememberMe功能提供支持
+
+- **AnonymousAuthenticationFilter: ** 匿名认证过滤器，所有未登录的用户都会被授予匿名身份
+
+- **OAuth2AuthorizationCodeGrantFilter: ** 
+
+- **SessionManagementFilter：** 提供Session管理，如Session固定攻击，Session并发控制等
+
+- **ExceptionTranslationFilter：** 主要是用来处理FilterSecurityInterceptor抛出的异常，如果抛出AccessDeniedException，并且当前Authentication对象是AnonymousAuthentication或RememberMeAuthenticationToken，则将异常转换为InsufficientAuthenticationException，并交由成员变量AuthenticationEntryPoint 进行处理，否则会交由AccessDeniedHandler进行处理，如果程序不抛出AccessDeniedException或AuthenticationException，ExceptionTranslationFilter将不做任何处理
+
+- **FilterSecurityInterceptor：** 权限控制的核心
+
+- **SwitchUserFilter：** 提供切换用户的支持
+
+
+
+### Handling Security Exceptions
+
+异常处理流程
+
+<img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/architecture/exceptiontranslationfilter.png" style="zoom:67%;" />
+
+1. ExcetionTranslationFilter调用FilterChain.doFilter执行剩下的请求
+2. 如果用户未认证或者后面的Filter抛出AuthenticationException
+   - 清除SecurityContextHolder
+   - 将HttpServletRequest保存在RequestCache，如果用户成功认证可以通过RequestCache重放原始请求
+   - 将后续操作委派给AuthenticationEntryPoint处理。内部可以重定向登录页面或者返回自定义信息
+3. 说明是AccessDeniedException，交给AccessDeniedHandler进行处理
+
+**伪代码**
+
+```java
+try {
+    filterChain.doFilter(request, response); 
+} catch (AccessDeniedException | AuthenticationException ex) {
+    if (!authenticated || ex instanceof AuthenticationException) {
+        startAuthentication(); 
+    } else {
+        accessDenied(); 
+    }
+}
+```
+
+
+
+## 五，认证
+
+### 5.1 架构和组件
+
+- **SecurityContextHolder：** 存储用户认证相关的细节
+- **SecurityContext：** 从SecurityContextHolder中获取，内部包含当前用户的Authentication
+- **Authentication：**  存储在SecurityContext中的对象，可以提供用户用于认证的基础信息，交给AuthenticationManager进行认证，也可以是来自SecurityContext中的当前用户(已认证)
+- **GrantedAuthority：** 代表前用户所被授予的权限，如role或scopes
+- **AuthenticationManager：** 内部定义了用于执行认证的相关API
+- **ProviderManager：** AuthenticationManager最常用的实现类
+- **AuthenticationProvider：** 用于ProviderManager执行指定authentication类型的认证
+- **AuthenticationEntryPoint：** 一般用户处理用户未登录的行为
+- **AbstractAuthenticationProcessingFilter：** 用于认证的基础Filter
+
+### 5.2 认证机制
+
 
 
 

@@ -6,15 +6,15 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
 @Configuration
-@Order(0)
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+@Order(-1)
+public class WebSecurityConfig2 extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http.csrf().disable()
+                .antMatcher("/user/**")
                 .authorizeRequests()
-                .antMatchers("/user/login").authenticated()
-                .antMatchers("/**").permitAll()
+                .anyRequest().permitAll()
                 .and()
                 .formLogin()
                 .and()

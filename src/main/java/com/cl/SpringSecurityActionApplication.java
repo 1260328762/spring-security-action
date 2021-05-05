@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SpringBootApplication
 @Controller
@@ -17,17 +18,23 @@ public class SpringSecurityActionApplication {
     public static void main(String[] args) {
         SpringApplication.run(SpringSecurityActionApplication.class, args);
 
+        AtomicInteger integer = new AtomicInteger();
         List<Thread> threads = new ArrayList<>(700);
-        for (int i = 0; i < 700; i++) {
-            threads.add(new Thread(){
+        for (int i = 0; i < 7000; i++) {
+            new Thread(){
                 @Override
                 public void run() {
-                    System.out.println("");
+                    System.out.println(integer.getAndIncrement());
+                    try {
+                        Thread.sleep(900000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
-            });
+            }.start();
         }
 
-        UsernamePasswordAuthenticationFilter usernamePasswordAuthenticationFilter = new UsernamePasswordAuthenticationFilter();
+        UsernamePasswordAuthenticationFilter filter = new UsernamePasswordAuthenticationFilter();
     }
 
     @GetMapping("/user/logout")
