@@ -406,21 +406,88 @@ try {
 
 ## 五，认证
 
-### 5.1 架构和组件
+### 5.1 认证组件和认证机制
 
-- **SecurityContextHolder：** 存储用户认证相关的细节
-- **SecurityContext：** 从SecurityContextHolder中获取，内部包含当前用户的Authentication
-- **Authentication：**  存储在SecurityContext中的对象，可以提供用户用于认证的基础信息，交给AuthenticationManager进行认证，也可以是来自SecurityContext中的当前用户(已认证)
-- **GrantedAuthority：** 代表前用户所被授予的权限，如role或scopes
-- **AuthenticationManager：** 内部定义了用于执行认证的相关API
-- **ProviderManager：** AuthenticationManager最常用的实现类
-- **AuthenticationProvider：** 用于ProviderManager执行指定authentication类型的认证
-- **AuthenticationEntryPoint：** 一般用户处理用户未登录的行为
-- **AbstractAuthenticationProcessingFilter：** 用于认证的基础Filter
+#### 5.1.1 SecurityContextHolder
 
-### 5.2 认证机制
+SecurityContextHolder是Spring Security认证模型中的核心组件，其内部包含了SecurityContext。默认采用ThreadLocal存储，也支持自定义存储策略。主要作用是存放已经验证通过用户的信息
+
+表明一个用户验证通过最简单的办法就是直接将Authentication存放到SecurityContextHolder中，例：
+
+```java
+SecurityContext context = SecurityContextHolder.createEmptyContext(); 
+Authentication authentication =
+    new TestingAuthenticationToken("username", "password", "ROLE_USER"); 
+context.setAuthentication(authentication);
+
+SecurityContextHolder.setContext(context); 
+```
+
+SecurityContextHolder.createEmptyContext() 使用该方法创建SecurityContext而不使用SecurityContextHolder.getContext().setAuthentication(authentication) 这种方式的好处在于可以避免多线程之间发生竞争
+
+**存储策略**
+
+SecurityContextHolder 内部默认提供了三种存储SecurityContext的策略，分别是 ThreadLocal，InheritableThreadLocal，GlobalStaticField(静态字段，即所有线程都可以访问到)，
+
+有两种方法可以指定存储策略
+
+- 设置系统属性spring.security.strategy
+- SecurityContextHolder#setStrategyName
+
+结构图
+
+![](https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/authentication/architecture/securitycontextholder.png)
 
 
+
+#### 5.1.2 SecurityContext
+
+ 存储在SecurityContextHolder中的对象，内部包含当前用户的Authentication对象
+
+#### 5.1.3 Authentication
+
+Authentication对象有两个主要作用
+
+- 作为AuthenticationManager的输入，用于提供身份验证
+- 代表当前已认证通过的用户，可以从SecuriyContext中获取
+
+Authentication包含下面几种对象
+
+- `principal` 用户标识符，当使用UsernamePasswordToken时，principal通常是UserDetail对象
+- `credential` 通常代表password，认证通过后，会被清除 以防泄露
+- `authorities` `GrantedAuthority`代表当前用户被赋予的权限，比如rule或者scopes
+
+#### 5.1.4 GrantedAuthority
+
+GrantedAuthority 代表前用户所被授予的权限，如role或scopes，通常被UserDetailService加载
+
+#### 5.1.5  AuthenticationManager
+
+AuthenticationManager 主要用户执行用户认证相关逻辑，集成在Security Filter中，如果不使用Security Filter可以直接使用SecurityContextHolder，常用实现类：ProviderManager
+
+#### 5.1.6 ProviderManager
+
+ProviderManager是最常用的AuthenticationManager实现类，ProviderManager将具体认证逻辑委派给AuthenticationProvider 列表。遍历AuthenticationProvider列表，找出能支持当前Authentication对象的AuthenticationProvider然后交由他执行认证，如果不支持则继续遍历。如果未能找到对应的AuthenticationProvider则触发ProviderNotFountException
+
+结构图
+
+<img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/authentication/architecture/providermanager.png" style="zoom: 80%;" />
+
+
+
+#### 5.1.7 AuthenticationProvider
+
+每个AuthenticationProvider都为指定类型的Authentication提供验证，例如`DaoAuthenticationProvider`supports username/password based authentication while `JwtAuthenticationProvider` supports authenticating a JWT token.
+
+#### 5.1.8 AuthenticationEntryPoint
+
+一般用于处理用户未登录状态，使用AuthenticationEntryPoint，可以重定向到登录页，如果在前后端分离的架构中可以返回自定义信息
+
+#### 5.1.9 AbstractAuthenticationProcessingFilter
+
+ 用于认证的基础Filter，内部抽象出了公共的代码。认证流程图：
+
+<img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/authentication/architecture/abstractauthenticationprocessingfilter.png" style="zoom:80%;" />
 
 
 
