@@ -404,11 +404,11 @@ try {
 
 
 
-## 五，认证
+## 五，认证组件和机制
 
-### 5.1 认证组件和认证机制
 
-#### 5.1.1 SecurityContextHolder
+
+### 5.1 SecurityContextHolder
 
 SecurityContextHolder是Spring Security认证模型中的核心组件，其内部包含了SecurityContext。默认采用ThreadLocal存储，也支持自定义存储策略。主要作用是存放已经验证通过用户的信息
 
@@ -427,7 +427,7 @@ SecurityContextHolder.createEmptyContext() 使用该方法创建SecurityContext�
 
 **存储策略**
 
-SecurityContextHolder 内部默认提供了三种存储SecurityContext的策略，分别是 ThreadLocal，InheritableThreadLocal，GlobalStaticField(静态字段，即所有线程都可以访问到)，
+SecurityContextHolder 内部默认提供了三种存储SecurityContext的策略，分别是 ThreadLocal，InheritableThreadLocal，MODE_GLOBAL(内部使用静态字段存储，即所有线程都可以访问到)，
 
 有两种方法可以指定存储策略
 
@@ -440,11 +440,11 @@ SecurityContextHolder 内部默认提供了三种存储SecurityContext的策略�
 
 
 
-#### 5.1.2 SecurityContext
+### 5.2 SecurityContext
 
  存储在SecurityContextHolder中的对象，内部包含当前用户的Authentication对象
 
-#### 5.1.3 Authentication
+### 5.3 Authentication
 
 Authentication对象有两个主要作用
 
@@ -457,15 +457,15 @@ Authentication包含下面几种对象
 - `credential` 通常代表password，认证通过后，会被清除 以防泄露
 - `authorities` `GrantedAuthority`代表当前用户被赋予的权限，比如rule或者scopes
 
-#### 5.1.4 GrantedAuthority
+### 5.4 GrantedAuthority
 
 GrantedAuthority 代表前用户所被授予的权限，如role或scopes，通常被UserDetailService加载
 
-#### 5.1.5  AuthenticationManager
+### 5.5  AuthenticationManager
 
 AuthenticationManager 主要用户执行用户认证相关逻辑，集成在Security Filter中，如果不使用Security Filter可以直接使用SecurityContextHolder，常用实现类：ProviderManager
 
-#### 5.1.6 ProviderManager
+### 5.6 ProviderManager
 
 ProviderManager是最常用的AuthenticationManager实现类，ProviderManager将具体认证逻辑委派给AuthenticationProvider 列表。遍历AuthenticationProvider列表，找出能支持当前Authentication对象的AuthenticationProvider然后交由他执行认证，如果不支持则继续遍历。如果未能找到对应的AuthenticationProvider则触发ProviderNotFountException
 
@@ -475,21 +475,115 @@ ProviderManager是最常用的AuthenticationManager实现类，ProviderManager�
 
 
 
-#### 5.1.7 AuthenticationProvider
+### 5.7 AuthenticationProvider
 
 每个AuthenticationProvider都为指定类型的Authentication提供验证，例如`DaoAuthenticationProvider`supports username/password based authentication while `JwtAuthenticationProvider` supports authenticating a JWT token.
 
-#### 5.1.8 AuthenticationEntryPoint
+### 5.8 AuthenticationEntryPoint
 
 一般用于处理用户未登录状态，使用AuthenticationEntryPoint，可以重定向到登录页，如果在前后端分离的架构中可以返回自定义信息
 
-#### 5.1.9 AbstractAuthenticationProcessingFilter
+### 5.9 AbstractAuthenticationProcessingFilter
 
  用于认证的基础Filter，内部抽象出了公共的代码。认证流程图：
 
 <img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/authentication/architecture/abstractauthenticationprocessingfilter.png" style="zoom:80%;" />
 
+1. 根据用户输入的认证信息(例：用户名和密码)构建`Authentication`，`Authentication`的具体类型由`AbstractAuthenticationProcessingFilte`r的子类构建，比如`UsernamePasswordFilter`会创建`UsernamePasswordAuthenticationToken`
 
+2. 然后将`Authentication`对象交由`AuthenticationManager`执行认证
+
+3. 如果认证失败
+
+   - `SecurityContextHolder`会被清空
+   - `RememberMeServices#loginFail 执行`
+   - `AuthenticationFailureHandler`执行
+
+   源码：AbstractAuthenticationProcessingFilter#unsuccessfulAuthentication
+   
+4. 如果认证成功
+
+   - `SessionAuthenticationStrategy#onAuthentication` 执行
+   - `Authentication`存入`SecurityContextHolder`中，等请求完成之后`SecurityContextPersistenceFilter`会将`SecurityContext`存入`HttpSession`中。
+   - `RememberMeServices#loginSuccess`会执行
+   - `ApplicationEventPublisher` 发布事件：`InteractiveAuthenticationSuccessEvent`
+   - `AuthenticationSuccessHandler` 执行
+
+   源码：AbstractAuthenticationProcessingFilter#successfulAuthentication
+
+
+
+### 5.10 Username/Password Authentication
+
+#### 5.10.1 PasswordEncoder
+
+通过暴露PasswordEncoder的Bean即可将自定义的PasswordEncoder集成到Spring Security中
+
+#### 5.10.2 DaoAuthenticationProvider
+
+DaoAuthenticationProvider为AuthenticationProvider的实现类，内部使用`UserDetailService`和`PasswordEncoder` 验证用户名和密码。流程图如下：
+
+<img src="https://docs.spring.io/spring-security/site/docs/5.4.6/reference/html5/images/servlet/authentication/unpwd/daoauthenticationprovider.png" style="zoom:80%;" />
+
+
+
+### 5.11 SessionManagement
+
+Http session 相关的功能是通过`SessionManagementFilter`和`SessionAuthenticationStrategy`组合来处理的，包含基本功能为：会话固定保护，攻击预防，会话超时检测，同一用户的session并发处理
+
+#### 5.11.1 超时检测
+
+通过配置超时处理策略`InvalidSessionStrategy`可以控制浏览器提交无效Session上来之后程序的应当做出怎样的处理行为，
+
+Java 配置
+
+```java
+ protected void configure(HttpSecurity http) throws Exception {
+        http
+            // ...
+            .sessionManagement()
+            .invalidSessionStrategy(new CustomerInvalidSessionStrategy())
+            // ...
+    }
+```
+
+
+
+#### 5.11.2 Session 并发控制
+
+通过配置sessionConcurrency可以控制限制用户的会话数，比如QQ登录，第二次登录会导致第一次会话失效
+
+详细配置即说明见`SessionManagementConfigurer`的内部类`ConcurrencyControlConfigurer`
+
+
+
+#### 5.11.3 Session 固定攻击保护
+
+会话固定攻击是攻击者通过访问某个网站而产生一个session，随后去诱骗用户使用相同会话去登录(例：通过向用户发送一个包含会话标识符作为参数的链接)。当用户登录成功之后，攻击者这边也会自动登录。
+
+Spring Security默认提供三种方式抵御此攻击
+
+- **newSession：** 登录成功创建一个新session
+- **migrateSession：** 登录成功创建新session，然后复制老session中的数据到新session
+- **changeSessionId：** 只更改sessionId（HttpServletRequest#changeSessionId()）
+
+
+
+#### 5.11.4 SessionManagementFilter
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
 
 
 

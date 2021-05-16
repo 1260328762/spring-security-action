@@ -22,5 +22,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .sessionConcurrency(configure -> {
                     configure.maximumSessions(1);
                 });
+
     }
 }
