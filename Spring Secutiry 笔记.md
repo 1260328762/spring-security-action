@@ -571,9 +571,19 @@ Spring Security默认提供三种方式抵御此攻击
 
 #### 5.11.4 SessionManagementFilter
 
+在当前线程中的`SecurityContextRepository`是否有用户上下文信息，如果没有，并且判断`SecurityContextHolder的Authentication`不为空并且不是匿名访问，则执行`SessionAuthenticationStrategy.onAuthentication` 方法。否则判断当前sessionId是否有效，如果无效则执行，`InvalidSessionStrategy.onInvalidSessionDetected`
+
+#### 5.11.5 SessionAuthenticationStrategy
+
+`SessionAuthenticationStrategy`在`SessionManagementFilter`和`AbstractAuthenticationProcessingFilter`，都有用到，所以两个地方都需要配置，
+
+注:
+
+> 在`HttpSessionBindingListener`和`SessionFixationProtectionStrategy`同时使用时可能造成问题，因为`SessionFixationProtectionStrategy`中会对session中的属性重新设置
 
 
 
+#### 5.11.6 Concurrency Control(Session并发控制)
 
 
 
