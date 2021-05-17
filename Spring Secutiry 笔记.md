@@ -585,6 +585,57 @@ Spring Security默认提供三种方式抵御此攻击
 
 #### 5.11.6 Concurrency Control(Session并发控制)
 
+Spring Security可以控制一个用户在一个程序中能够同时拥有多少会话。并且可以控制当检测到用户超过指定会话数量时程序应当作出怎么的反应。Spring Security针对会话超出，内部提供了两种应对措施。
+
+1. **最后一个会话建立时，会使最早创建的会话过期**
+
+   业界普遍采用这种方式，比如QQ，微信
+
+2. **当检测到会话数量已达到最大时，阻止新会话的创建**
+
+   使用此种方式时，如果之前一个会话已经创建，在使用完成后并没有执行登出操作(比如直接关闭了浏览器)，那么当前会话在有效期内一直存在，会导致此账号在这一段时间之内无法登录。
+
+控制会话的逻辑由`SessionAuthenticationStrategy` 的子类`ConcurrentSessionControlAuthenticationStrategy` 实现
+
+
+
+**ConcurrentSessionFilter**
+
+在`ConcurrentSessionFilter`中会判断`SessionRegistry`中的当前会话是否过期，如果过期，则调用`SessionInformationExpiredStrategy.onExpiredSessionDetected`进行处理，默认实现为`ResponseBodySessionInformationExpiredStrategy`
+
+**SessionRegistry**
+
+在SessionRegistry中，会存储当前程序所有的会话。可以使用该类中的方法进行一个特殊操作，比如作为管理员可以强制登出某个用户的账号等等。想要实现这种自定义从操作可以将`SessionRegistry`注册为Spring的一个Bean。后续注入到程序中使用，例
+
+```java
+@Configuration
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        	http.sessionManagement()
+                .sessionConcurrency(configure -> {
+                    configure.maximumSessions(-1);
+                    configure.sessionRegistry(sessionRegistry());
+                });
+    }
+
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+}
+
+```
+
+将`maximumSessions` 属性设置成-1表示，不限制用户会话数
+
+
+
+#### 5.11.7 Remember-Me Authentication
+
+
+
 
 
 

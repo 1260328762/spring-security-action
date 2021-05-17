@@ -1,7 +1,9 @@
 package com.cl;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -18,6 +20,9 @@ public class SpringSecurityActionApplication {
         SpringApplication.run(SpringSecurityActionApplication.class, args);
     }
 
+    @Autowired
+    private SessionRegistry sessionRegistry;
+
     @GetMapping("/user/logout")
     @ResponseBody
     public String logout() {
@@ -32,6 +37,7 @@ public class SpringSecurityActionApplication {
         session.setAttribute("test", "1");
         session.getAttribute("test2");
         System.out.println("login");
+        System.out.println(sessionRegistry.getAllPrincipals());
         return "login";
     }
 
