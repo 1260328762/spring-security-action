@@ -632,7 +632,31 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 
 
-#### 5.11.7 Remember-Me Authentication
+### 5.11 Remember-Me Authentication
+
+通常网站登录界面都会有记住我功能，此功能本质上是利用cookie实现，Spring Security 提供了两种实现
+
+注：两种方式都需要配置UserDetailService
+
+#### 5.11.1 Simple Hash-Based Token Approach (基于Hash算法)
+
+使用此种方式生成的token包含三段
+
+```tex
+base64(username + ":" + expirationTime + ":" +
+md5Hex(username + ":" + expirationTime + ":" password + ":" + key))
+
+username:          As identifiable to the UserDetailsService
+password:          That matches the one in the retrieved UserDetails
+expirationTime:    The date and time when the remember-me token expires, expressed in milliseconds
+key:               A private key to prevent modification of the remember-me token
+```
+
+首先根据username找到用户，然后将用户名过期时间密码和签名key进行MD5计算，如果cookie中的remember token和计算后的结果一样，在交由ProviderManager进行key的验证，通过即登录成功
+
+
+
+#### 5.11.2  Persistent Token Approach
 
 
 
