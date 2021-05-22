@@ -31,10 +31,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .and()
                 .sessionManagement()
                 .sessionConcurrency(configure -> {
-                    configure.maximumSessions(1);
+                    configure.maximumSessions(-1);
                     configure.sessionRegistry(sessionRegistry());
-                });
-
+                })
+                .and()
+                .rememberMe()
+                .key("123");
     }
 
     @Override
@@ -44,7 +46,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .password("123456")
                 .authorities(Collections.emptyList())
                 .build();
-        auth.userDetailsService(new InMemoryUserDetailsManager(user));
+        UserDetails user2 = User.withDefaultPasswordEncoder()
+                .username("admin")
+                .password("123456")
+                .authorities(Collections.emptyList())
+                .build();
+        auth.userDetailsService(new InMemoryUserDetailsManager(user, user2));
     }
 
     @Override
