@@ -25,6 +25,13 @@ public class SpringSecurityActionApplication {
     @Autowired
     private SessionRegistry sessionRegistry;
 
+
+    @GetMapping("/role/admin")
+    @ResponseBody
+    public String roleAdmin() {
+        return "You have role [admin]";
+    }
+
     @GetMapping("/user/logout")
     @ResponseBody
     public String logout() {

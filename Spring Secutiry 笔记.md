@@ -632,15 +632,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 
 
-### 5.11 Remember-Me Authentication
+### 5.12 Remember-Me Authentication
 
 通常网站登录界面都会有记住我功能，此功能本质上是利用cookie实现，Spring Security 提供了两种实现
 
 注：两种方式都需要配置UserDetailService
 
-#### 5.11.1 Simple Hash-Based Token Approach (基于Hash算法)
+#### 5.12.1 Simple Hash-Based Token Approach (基于Hash算法)
 
-使用此种方式生成的token包含三段
+使用此种方式生成的token包含三段rm
 
 ```tex
 base64(username + ":" + expirationTime + ":" +
@@ -656,21 +656,57 @@ key:               A private key to prevent modification of the remember-me toke
 
 
 
-#### 5.11.2  Persistent Token Approach
+#### 5.12.2  Persistent Token Approach
+
+持久化Token方式，将remember-token存在数据库中
 
 
 
+### 5.13 Run As Authentication Replacement
 
 
 
+### 5.14 Handling Logout
+
+通过在`LogoutFilter`中配置`LogoutHandler`可以实现自定义的登出功能。
+
+在`LogoutHanler`执行完之后`LogoutSuccessHandler` 会被执行。
+
+`LogoutFilter`和`LogoutSuccessHandler`的区别是前者不应该抛出异常，后者可以
 
 
 
+# 六，授权组件和机制
+
+### 6.1 Authorization Architecture
+
+#### 6.1.1 Authorities
+
+Authorities表示用户所被授权的权限集合，存放在当前用户的`Authentication` 对象中。
 
 
-   
 
+#### 6.1.2 Pre-Invocation Handling
 
+在请求真正被执行之前要经历一次预处理，一般在此操作中判断是否有相应的权限调用接口或者方法。内部使用`AccessDecisionManager`实现
+
+**AccessDecisionManager**
+
+`AccessDecisionManager`被`AbstractSecurityInterceptor`调用来做最终的访问控制， 底层基于投票机制来实现访问控制，内部有多个投票者`AccessDecisionVoter`进行投票，根据不同的模式来决定是否允许通过
+
+![](https://docs.spring.io/spring-security/site/docs/current/reference/html5/images/access-decision-voting.png)
+
+1. **AffirmativeBased**
+
+   `AffirmativeBased`基于乐观投票模式，如果任意一个投票者投出赞成票，则允许此次请求通过访问。如果所有投票者都弃权会通过属性`allowIfAllAbstainDecisions` 来决定请求允许通过
+
+2. **ConsensusBased**
+
+   `ConsensusBased`基于公平投票模式，如果赞成票比反对票多则通过，反之不通过。如果两者票数一致则通过属性`allowIfEqualGrantedDeniedDecisions`决定是否通过，如果所有投票者弃权，则通过``allowIfAllAbstainDecisions` `决定程序最终行为
+
+3. **UnanimousBased**
+
+   `UnanimousBased`基于悲观投票模式。如果任意一个投票者投出反对票，则拒绝此次请求。如果所有投票者弃权则通过属性`allowIfAllAbstainDecisions` 决定程序最终行为
 
 
 
